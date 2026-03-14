@@ -1,0 +1,21 @@
+name,role,base_price,nationality,ipl_team
+Virat Kohli,Batsman,200000000,Indian,RCB
+Rohit Sharma,Batsman,160000000,Indian,MI
+KL Rahul,Batsman,140000000,Indian,LSG
+Shubman Gill,Batsman,100000000,Indian,GT
+David Warner,Batsman,75000000,Australian,DC
+Jos Buttler,Batsman,120000000,English,RR
+Jasprit Bumrah,Bowler,200000000,Indian,MI
+Mohammed Shami,Bowler,100000000,Indian,GT
+Rashid Khan,Bowler,150000000,Afghan,GT
+Yuzvendra Chahal,Bowler,60000000,Indian,RR
+Trent Boult,Bowler,80000000,New Zealander,MI
+Pat Cummins,Bowler,200000000,Australian,SRH
+Hardik Pandya,All-Rounder,150000000,Indian,MI
+Ravindra Jadeja,All-Rounder,160000000,Indian,CSK
+Ben Stokes,All-Rounder,125000000,English,CSK
+Sunil Narine,All-Rounder,60000000,West Indian,KKR
+Glenn Maxwell,All-Rounder,110000000,Australian,RCB
+MS Dhoni,Wicket-Keeper,100000000,Indian,CSK
+Rishabh Pant,Wicket-Keeper,160000000,Indian,DC
+Quinton de Kock,Wicket-Keeper,80000000,South African,LSG
