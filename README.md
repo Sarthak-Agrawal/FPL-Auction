@@ -91,6 +91,31 @@ Each team page shows purse summary, full squad, spend by role, and the live auct
 
 ---
 
+## Seed only Teams + Players (Git-safe DB snapshot)
+
+The runtime SQLite DB file is ignored in Git (`backend/*.db`).  
+To commit only teams + players, use SQL seed export:
+
+```bash
+cd backend
+python3 scripts/export_seed.py --db fpl_auction.db --out seeds/teams_players_seed.sql
+```
+
+This exports only:
+- `team`
+- `player`
+
+It intentionally excludes runtime tables like `bid` and `auctionconfig`.
+
+Import into a fresh local DB manually:
+
+```bash
+cd backend
+sqlite3 fpl_auction.db < seeds/teams_players_seed.sql
+```
+
+---
+
 ## CSV Format
 
 ```csv
