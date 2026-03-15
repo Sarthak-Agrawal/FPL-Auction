@@ -10,7 +10,20 @@ import PurseTracker from "../components/PurseTracker";
 import { API_BASE_URL } from "../config";
 
 function AdminInner({ adminToken }) {
-  const { state, timer, bidHistory, connected, socketError, adminNext, adminSold, adminUnsold, toggleAutopilot } = useAuction();
+  const {
+    state,
+    timer,
+    timerDisabled,
+    bidHistory,
+    connected,
+    socketError,
+    adminNext,
+    adminSold,
+    adminUnsold,
+    adminDisableTimer,
+    adminEnableTimer,
+    toggleAutopilot,
+  } = useAuction();
   const [starting, setStarting] = useState(false);
 
   const adminHeaders = {
@@ -43,6 +56,14 @@ function AdminInner({ adminToken }) {
           {socketError && <p className="text-red-400 text-xs mt-1">{socketError}</p>}
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => (timerDisabled ? adminEnableTimer() : adminDisableTimer())}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              timerDisabled ? "bg-orange-500 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            ⏸ Intense Bid Mode {timerDisabled ? "ON" : "OFF"}
+          </button>
           <button
             onClick={() => toggleAutopilot(!state?.autopilot)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
@@ -84,7 +105,18 @@ function AdminInner({ adminToken }) {
               highestTeam={state?.current_highest_team}
             />
 
-            {isActive && <Timer seconds={timer} duration={state?.timer_duration} />}
+            {isActive && (
+              <Timer
+                seconds={timer}
+                duration={state?.timer_duration}
+                disabled={timerDisabled}
+              />
+            )}
+            {isActive && timerDisabled && (
+              <p className="text-xs text-orange-300">
+                Timer is disabled for this player. Close manually using Sold/Unsold/Next.
+              </p>
+            )}
 
             <div className="grid grid-cols-3 gap-3">
               <button

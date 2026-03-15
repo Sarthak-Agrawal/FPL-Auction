@@ -62,6 +62,8 @@ def _full_state(session: Session) -> dict:
         "status": cfg.status,
         "autopilot": cfg.autopilot,
         "timer_duration": cfg.timer_duration,
+        "timer_remaining": _timer_remaining,
+        "timer_disabled_for_current_player": _timer_disabled_for_current_player,
         "current_player": _player_dict(current_player) if current_player else None,
         "current_highest_bid": cfg.current_highest_bid,
         "current_highest_team": _team_dict(current_team) if current_team else None,
@@ -74,6 +76,7 @@ def _full_state(session: Session) -> dict:
 
 _timer_task: Optional[asyncio.Task] = None
 _timer_remaining: int = 0
+_timer_disabled_for_current_player: bool = False
 _auction_lock = asyncio.Lock()
 
 
@@ -85,17 +88,22 @@ async def _run_timer(duration: int):
             await manager.broadcast("timer_tick", {"seconds_remaining": _timer_remaining})
             await asyncio.sleep(1)
             _timer_remaining -= 1
+            if _timer_disabled_for_current_player:
+                return
+        if _timer_disabled_for_current_player:
+            return
         await _auto_sell()
     except asyncio.CancelledError:
         return
 
 
-def _cancel_timer():
+def _cancel_timer(reset_remaining: bool = True):
     global _timer_task, _timer_remaining
     if _timer_task and not _timer_task.done():
         _timer_task.cancel()
     _timer_task = None
-    _timer_remaining = 0
+    if reset_remaining:
+        _timer_remaining = 0
 
 
 def _start_timer(duration: int):
@@ -117,6 +125,8 @@ async def start_auction():
 
 
 async def _load_next_player():
+    global _timer_disabled_for_current_player
+
     next_player_payload = None
     state_payload = None
     is_complete = False
@@ -138,6 +148,7 @@ async def _load_next_player():
                 cfg.current_highest_team_id = None
                 session.add(cfg)
                 session.commit()
+                _timer_disabled_for_current_player = False
                 _cancel_timer()
                 is_complete = True
             else:
@@ -147,6 +158,7 @@ async def _load_next_player():
                 session.add(cfg)
                 session.commit()
                 session.refresh(next_player)
+                _timer_disabled_for_current_player = False
                 state_payload = _full_state(session)
                 next_player_payload = _player_dict(next_player)
                 timer_duration = state_payload["timer_duration"]
@@ -204,13 +216,16 @@ async def place_bid(team_id: int, amount: float) -> dict:
 
             state_payload = _full_state(session)
 
-    _start_timer(state_payload["timer_duration"])
+    timer_reset = not _timer_disabled_for_current_player
+    if timer_reset:
+        _start_timer(state_payload["timer_duration"])
+
     await manager.broadcast(
         "bid_placed",
         {
             "team": state_payload["current_highest_team"],
             "amount": amount,
-            "timer_reset": True,
+            "timer_reset": timer_reset,
         },
     )
     await manager.broadcast("auction_state", state_payload)
@@ -313,6 +328,61 @@ async def admin_mark_unsold():
 async def admin_next_player():
     _cancel_timer()
     await _load_next_player()
+
+
+async def admin_disable_timer_for_current_player() -> dict:
+    global _timer_disabled_for_current_player
+
+    async with _auction_lock:
+        with Session(engine) as session:
+            cfg = _get_config(session)
+            if cfg.status != AuctionStatus.active or cfg.current_player_id is None:
+                return {"ok": False, "error": "Auction is not active"}
+
+            if _timer_disabled_for_current_player:
+                return {"ok": True, "already": True}
+
+            _timer_disabled_for_current_player = True
+            _cancel_timer(reset_remaining=False)
+            state_payload = _full_state(session)
+
+    await manager.broadcast(
+        "timer_disabled",
+        {
+            "player_id": state_payload["current_player"]["id"] if state_payload["current_player"] else None,
+            "timer_remaining": state_payload["timer_remaining"],
+        },
+    )
+    await manager.broadcast("auction_state", state_payload)
+    return {"ok": True}
+
+
+async def admin_enable_timer_for_current_player() -> dict:
+    global _timer_disabled_for_current_player, _timer_remaining
+
+    async with _auction_lock:
+        with Session(engine) as session:
+            cfg = _get_config(session)
+            if cfg.status != AuctionStatus.active or cfg.current_player_id is None:
+                return {"ok": False, "error": "Auction is not active"}
+
+            if not _timer_disabled_for_current_player:
+                return {"ok": True, "already": True}
+
+            _timer_disabled_for_current_player = False
+            resume_from = _timer_remaining if _timer_remaining > 0 else cfg.timer_duration
+            _start_timer(resume_from)
+            state_payload = _full_state(session)
+
+    await manager.broadcast(
+        "timer_enabled",
+        {
+            "player_id": state_payload["current_player"]["id"] if state_payload["current_player"] else None,
+            "timer_remaining": state_payload["timer_remaining"],
+        },
+    )
+    await manager.broadcast("auction_state", state_payload)
+    return {"ok": True}
 
 
 async def set_autopilot(enabled: bool):

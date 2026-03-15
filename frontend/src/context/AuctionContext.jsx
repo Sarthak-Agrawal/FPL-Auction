@@ -52,7 +52,15 @@ export function AuctionProvider({ children, teamId, adminToken }) {
           ]);
         } else if (event === "next_player") {
           setState((prev) =>
-            prev ? { ...prev, current_player: data, current_highest_bid: null, current_highest_team: null } : prev
+            prev
+              ? {
+                  ...prev,
+                  current_player: data,
+                  current_highest_bid: null,
+                  current_highest_team: null,
+                  timer_disabled_for_current_player: false,
+                }
+              : prev
           );
           setBidHistory([]);
         } else if (event === "player_sold") {
@@ -67,6 +75,20 @@ export function AuctionProvider({ children, teamId, adminToken }) {
           setState((prev) => (prev ? { ...prev, status: "complete" } : prev));
         } else if (event === "autopilot_changed") {
           setState((prev) => (prev ? { ...prev, autopilot: data.autopilot } : prev));
+        } else if (event === "timer_disabled") {
+          setState((prev) =>
+            prev ? { ...prev, timer_disabled_for_current_player: true } : prev
+          );
+          if (typeof data?.timer_remaining === "number") {
+            setTimer(data.timer_remaining);
+          }
+        } else if (event === "timer_enabled") {
+          setState((prev) =>
+            prev ? { ...prev, timer_disabled_for_current_player: false } : prev
+          );
+          if (typeof data?.timer_remaining === "number") {
+            setTimer(data.timer_remaining);
+          }
         } else if (event === "auth_error") {
           setSocketError(data?.error || "Unauthorized admin operation");
         } else if (event === "bid_error") {
@@ -95,6 +117,7 @@ export function AuctionProvider({ children, teamId, adminToken }) {
       value={{
         state,
         timer,
+        timerDisabled: Boolean(state?.timer_disabled_for_current_player),
         bidHistory,
         connected,
         socketError,
@@ -102,6 +125,8 @@ export function AuctionProvider({ children, teamId, adminToken }) {
         adminNext: () => send({ event: "admin_next" }),
         adminSold: () => send({ event: "admin_sold" }),
         adminUnsold: () => send({ event: "admin_unsold" }),
+        adminDisableTimer: () => send({ event: "admin_disable_timer" }),
+        adminEnableTimer: () => send({ event: "admin_enable_timer" }),
         toggleAutopilot: (enabled) => send({ event: "admin_toggle_autopilot", enabled }),
       }}
     >

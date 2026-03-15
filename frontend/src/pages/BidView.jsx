@@ -8,11 +8,12 @@ import PurseTracker from "../components/PurseTracker";
 import BidHistory from "../components/BidHistory";
 
 function BidViewInner({ teamId }) {
-  const { state, timer, bidHistory, connected, placeBid } = useAuction();
+  const { state, timer, timerDisabled, bidHistory, connected, placeBid } = useAuction();
 
   const myTeam = state?.teams?.find((t) => String(t.id) === String(teamId));
   const isActive = state?.status === "active";
   const timerUp = timer === 0;
+  const biddingBlockedByTimer = !timerDisabled && timerUp;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -51,14 +52,20 @@ function BidViewInner({ teamId }) {
               highestBid={state?.current_highest_bid}
               highestTeam={state?.current_highest_team}
             />
-            {isActive && <Timer seconds={timer} duration={state?.timer_duration} />}
+            {isActive && (
+              <Timer
+                seconds={timer}
+                duration={state?.timer_duration}
+                disabled={timerDisabled}
+              />
+            )}
             {isActive && myTeam && (
               <BidControls
                 currentBid={state?.current_highest_bid}
                 basePrice={state?.current_player?.base_price}
                 budget={myTeam.budget_remaining}
                 onBid={placeBid}
-                disabled={timerUp || !state?.current_player}
+                disabled={biddingBlockedByTimer || !state?.current_player}
               />
             )}
             <BidHistory history={bidHistory} />

@@ -66,6 +66,7 @@ Each participant opens their link on their own browser/device.
 - Players appear one by one; the countdown timer starts
 - Participants click bid buttons (+10L, +20L, +1Cr) or type a custom amount
 - Each new bid resets the timer
+- If bidding gets intense, admin can enable **Intense Bid Mode (No Timer)** for the current player
 - Timer hits 0 → player auto-sold to highest bidder
 - No bids → player marked Unsold
 

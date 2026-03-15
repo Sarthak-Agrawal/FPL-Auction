@@ -1,4 +1,17 @@
-export default function Timer({ seconds, duration = 30 }) {
+export default function Timer({ seconds, duration = 30, disabled = false }) {
+  if (disabled) {
+    return (
+      <div className="bg-white rounded-2xl shadow p-4 border border-orange-200">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium text-orange-600 uppercase tracking-wide">Time Remaining</span>
+          <span className="text-sm font-semibold text-orange-700 bg-orange-100 px-3 py-1 rounded-full">
+            No Timer (Intense Bid Mode)
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const pct = duration > 0 ? Math.min((seconds / duration) * 100, 100) : 0;
   const isUrgent = seconds <= 5;
   const isWarning = seconds <= 10 && seconds > 5;

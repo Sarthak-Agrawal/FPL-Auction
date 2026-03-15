@@ -59,6 +59,22 @@ async def set_autopilot(body: AutopilotBody, _: bool = Depends(require_admin)):
     return {"ok": True, "autopilot": body.enabled}
 
 
+@router.post("/auction/timer/disable")
+async def disable_timer_for_current_player(_: bool = Depends(require_admin)):
+    result = await engine.admin_disable_timer_for_current_player()
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error", "Could not disable timer"))
+    return result
+
+
+@router.post("/auction/timer/enable")
+async def enable_timer_for_current_player(_: bool = Depends(require_admin)):
+    result = await engine.admin_enable_timer_for_current_player()
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error", "Could not enable timer"))
+    return result
+
+
 @router.get("/auction/state")
 def get_state(session: Session = Depends(get_session)):
     from auction_engine import _full_state
@@ -78,7 +94,6 @@ async def websocket_endpoint(websocket: WebSocket, team_id: str):
         with Session(engine.engine) as session:
             from auction_engine import _full_state
             state = _full_state(session)
-            state["timer_remaining"] = engine.get_timer_remaining()
         await websocket.send_json({"event": "auction_state", "data": state})
 
         while True:
@@ -104,7 +119,14 @@ async def websocket_endpoint(websocket: WebSocket, team_id: str):
                 if not result["ok"]:
                     await websocket.send_json({"event": "bid_error", "data": result})
 
-            elif event in {"admin_next", "admin_sold", "admin_unsold", "admin_toggle_autopilot"}:
+            elif event in {
+                "admin_next",
+                "admin_sold",
+                "admin_unsold",
+                "admin_toggle_autopilot",
+                "admin_disable_timer",
+                "admin_enable_timer",
+            }:
                 if not is_admin:
                     await websocket.send_json(
                         {"event": "auth_error", "data": {"ok": False, "error": "Admin authentication required"}}
@@ -119,6 +141,14 @@ async def websocket_endpoint(websocket: WebSocket, team_id: str):
                     await engine.admin_mark_unsold()
                 elif event == "admin_toggle_autopilot":
                     await engine.set_autopilot(bool(data.get("enabled", False)))
+                elif event == "admin_disable_timer":
+                    result = await engine.admin_disable_timer_for_current_player()
+                    if not result.get("ok"):
+                        await websocket.send_json({"event": "error", "data": result})
+                elif event == "admin_enable_timer":
+                    result = await engine.admin_enable_timer_for_current_player()
+                    if not result.get("ok"):
+                        await websocket.send_json({"event": "error", "data": result})
 
             else:
                 await websocket.send_json(
