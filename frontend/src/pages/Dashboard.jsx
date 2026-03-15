@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import axios from "axios";
 
-const API = "http://localhost:8000";
+import { API_BASE_URL } from "../config";
+
 const fmt = (v) => (v >= 1e7 ? `₹${(v / 1e7).toFixed(2)} Cr` : `₹${(v / 1e5).toFixed(0)} L`);
 
 const ROLE_COLORS = {
@@ -22,10 +23,10 @@ export default function Dashboard() {
 
   const load = async () => {
     const [lb, s, u, st] = await Promise.all([
-      axios.get(`${API}/dashboard/leaderboard`),
-      axios.get(`${API}/dashboard/players/sold`),
-      axios.get(`${API}/dashboard/players/unsold`),
-      axios.get(`${API}/dashboard/stats`),
+      axios.get(`${API_BASE_URL}/dashboard/leaderboard`),
+      axios.get(`${API_BASE_URL}/dashboard/players/sold`),
+      axios.get(`${API_BASE_URL}/dashboard/players/unsold`),
+      axios.get(`${API_BASE_URL}/dashboard/stats`),
     ]);
     setLeaderboard(lb.data);
     setSold(s.data);
@@ -34,7 +35,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
     const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, []);
@@ -43,7 +45,7 @@ export default function Dashboard() {
     if (expandedTeam === teamId) { setExpandedTeam(null); return; }
     setExpandedTeam(teamId);
     if (!squads[teamId]) {
-      const res = await axios.get(`${API}/dashboard/team/${teamId}/squad`);
+      const res = await axios.get(`${API_BASE_URL}/dashboard/team/${teamId}/squad`);
       setSquads((s) => ({ ...s, [teamId]: res.data.squad }));
     }
   };
@@ -112,7 +114,7 @@ export default function Dashboard() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {leaderboard.map((team, i) => (
-                <>
+                <Fragment key={team.id}>
                   <tr key={team.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-bold text-gray-400">{i + 1}</td>
                     <td className="px-6 py-4 font-semibold text-gray-800">{team.name}</td>
@@ -142,7 +144,7 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlmodel import Session, select
+from sqlmodel import Session
 from pydantic import BaseModel
 
+from auth import require_admin, verify_admin_token
 from models import AuctionConfig, AuctionStatus, get_session
 from ws_manager import manager
 import auction_engine as engine
@@ -21,7 +22,10 @@ class AutopilotBody(BaseModel):
 
 
 @router.post("/auction/start")
-async def start_auction(session: Session = Depends(get_session)):
+async def start_auction(
+    session: Session = Depends(get_session),
+    _: bool = Depends(require_admin),
+):
     cfg = session.get(AuctionConfig, 1)
     if cfg is None:
         raise HTTPException(400, "Auction not configured")
@@ -32,25 +36,25 @@ async def start_auction(session: Session = Depends(get_session)):
 
 
 @router.post("/auction/next")
-async def next_player():
+async def next_player(_: bool = Depends(require_admin)):
     await engine.admin_next_player()
     return {"ok": True}
 
 
 @router.post("/auction/sold")
-async def mark_sold():
+async def mark_sold(_: bool = Depends(require_admin)):
     await engine.admin_mark_sold()
     return {"ok": True}
 
 
 @router.post("/auction/unsold")
-async def mark_unsold():
+async def mark_unsold(_: bool = Depends(require_admin)):
     await engine.admin_mark_unsold()
     return {"ok": True}
 
 
 @router.post("/auction/autopilot")
-async def set_autopilot(body: AutopilotBody):
+async def set_autopilot(body: AutopilotBody, _: bool = Depends(require_admin)):
     await engine.set_autopilot(body.enabled)
     return {"ok": True, "autopilot": body.enabled}
 
@@ -65,6 +69,9 @@ def get_state(session: Session = Depends(get_session)):
 
 @router.websocket("/ws/{team_id}")
 async def websocket_endpoint(websocket: WebSocket, team_id: str):
+    token = websocket.query_params.get("token")
+    is_admin = verify_admin_token(token) if token else False
+
     await manager.connect(websocket, team_id)
     try:
         # Send current state on connect
@@ -79,21 +86,44 @@ async def websocket_endpoint(websocket: WebSocket, team_id: str):
             event = data.get("event")
 
             if event == "place_bid":
-                result = await engine.place_bid(data["team_id"], data["amount"])
+                if not team_id.isdigit():
+                    await websocket.send_json(
+                        {"event": "bid_error", "data": {"ok": False, "error": "Invalid bidder identity"}}
+                    )
+                    continue
+
+                try:
+                    amount = float(data["amount"])
+                except (KeyError, TypeError, ValueError):
+                    await websocket.send_json(
+                        {"event": "bid_error", "data": {"ok": False, "error": "Invalid bid amount"}}
+                    )
+                    continue
+
+                result = await engine.place_bid(int(team_id), amount)
                 if not result["ok"]:
                     await websocket.send_json({"event": "bid_error", "data": result})
 
-            elif event == "admin_next":
-                await engine.admin_next_player()
+            elif event in {"admin_next", "admin_sold", "admin_unsold", "admin_toggle_autopilot"}:
+                if not is_admin:
+                    await websocket.send_json(
+                        {"event": "auth_error", "data": {"ok": False, "error": "Admin authentication required"}}
+                    )
+                    continue
 
-            elif event == "admin_sold":
-                await engine.admin_mark_sold()
+                if event == "admin_next":
+                    await engine.admin_next_player()
+                elif event == "admin_sold":
+                    await engine.admin_mark_sold()
+                elif event == "admin_unsold":
+                    await engine.admin_mark_unsold()
+                elif event == "admin_toggle_autopilot":
+                    await engine.set_autopilot(bool(data.get("enabled", False)))
 
-            elif event == "admin_unsold":
-                await engine.admin_mark_unsold()
-
-            elif event == "admin_toggle_autopilot":
-                await engine.set_autopilot(data.get("enabled", False))
+            else:
+                await websocket.send_json(
+                    {"event": "error", "data": {"ok": False, "error": f"Unknown event '{event}'"}}
+                )
 
     except WebSocketDisconnect:
         manager.disconnect(team_id)

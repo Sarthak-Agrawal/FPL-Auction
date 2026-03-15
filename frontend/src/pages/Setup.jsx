@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API = "http://localhost:8000";
+import { API_BASE_URL } from "../config";
 
 export default function Setup() {
   const nav = useNavigate();
@@ -25,7 +25,7 @@ export default function Setup() {
   const addTeam = async () => {
     if (!teamName.trim()) return;
     try {
-      const res = await axios.post(`${API}/setup/teams`, { name: teamName.trim(), budget: Number(budget) });
+      const res = await axios.post(`${API_BASE_URL}/setup/teams`, { name: teamName.trim(), budget: Number(budget) });
       setTeams((t) => [...t, res.data]);
       setTeamName("");
       notify(`✅ Team "${res.data.name}" registered`);
@@ -35,7 +35,7 @@ export default function Setup() {
   };
 
   const removeTeam = async (id) => {
-    await axios.delete(`${API}/setup/teams/${id}`);
+    await axios.delete(`${API_BASE_URL}/setup/teams/${id}`);
     setTeams((t) => t.filter((x) => x.id !== id));
   };
 
@@ -44,9 +44,9 @@ export default function Setup() {
     const fd = new FormData();
     fd.append("file", file);
     try {
-      const res = await axios.post(`${API}/setup/players/upload`, fd);
+      const res = await axios.post(`${API_BASE_URL}/setup/players/upload`, fd);
       notify(`✅ ${res.data.players_added} players uploaded. ${res.data.errors.length ? res.data.errors[0] : ""}`);
-      const all = await axios.get(`${API}/setup/players`);
+      const all = await axios.get(`${API_BASE_URL}/setup/players`);
       setPlayers(all.data);
     } catch (e) {
       notify(e.response?.data?.detail || "Upload failed", true);
@@ -58,7 +58,9 @@ export default function Setup() {
     if (teams.length < 2) { notify("Register at least 2 teams", true); return; }
     if (players.length === 0) { notify("Upload player list first", true); return; }
     try {
-      await axios.post(`${API}/setup/configure`, { timer_duration: timerDuration, admin_password: adminPwd, autopilot });
+      await axios.post(`${API_BASE_URL}/setup/configure`, { timer_duration: timerDuration, admin_password: adminPwd, autopilot });
+      const verify = await axios.post(`${API_BASE_URL}/setup/verify-admin`, { password: adminPwd });
+      localStorage.setItem("fpl_admin_token", verify.data.token);
       notify("✅ Auction configured! Redirecting to admin…");
       setTimeout(() => nav("/admin"), 1500);
     } catch (e) {

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { AuctionProvider, useAuction } from "../context/AuctionContext";
+import { AuctionProvider } from "../context/AuctionContext";
+import { useAuction } from "../context/useAuction";
 import PlayerCard from "../components/PlayerCard";
 import Timer from "../components/Timer";
 import BidControls from "../components/BidControls";

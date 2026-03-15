@@ -1,5 +1,16 @@
 # IPL Auction App — Implementation Plan
 
+## Status Update (2026-03-15)
+- Project is implemented at `FPL-Auction/` (backend + frontend).
+- Post-review remediation is complete:
+  - Admin authentication enforced on auction-control REST and WebSocket admin events.
+  - Bid identity spoofing fixed (team identity now comes from WebSocket path, not client payload).
+  - Equal-bid acceptance fixed (new bids must exceed current highest bid).
+  - Frontend API/WS endpoints moved to environment-driven config (`VITE_API_URL`, `VITE_WS_URL`).
+  - CORS hardened with explicit allowed origins (`ALLOWED_ORIGINS`).
+  - Setup validation hardened for team budget, timer range, password length, CSV file type and base price validity.
+  - Auction mutations serialized with an async lock to prevent race conditions during concurrent bids/sells.
+
 ## Overview
 A real-time web-based IPL auction platform where geographically distributed friends can participate in a live player auction via their browsers. Participants register before the auction; an auctioneer/admin drives the flow with an optional **autopilot** mode.
 
