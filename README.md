@@ -76,9 +76,18 @@ Toggle **🤖 Autopilot** ON to advance to the next player automatically after e
 ### Step 5 — Dashboard
 Open http://localhost:5173/dashboard at any time to see:
 - Live leaderboard
+- Live current bid (player, highest bid, highest team, timer/no-timer state)
 - Team squads
 - Sold/unsold player list with role filters
 - Export to CSV
+- Direct links to dedicated team pages (`/team/<team_id>`)
+
+### Step 6 — Individual Team Pages
+Open:
+```
+http://localhost:5173/team/<team_id>
+```
+Each team page shows purse summary, full squad, spend by role, and the live auction widget.
 
 ---
 

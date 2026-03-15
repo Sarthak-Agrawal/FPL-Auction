@@ -17,21 +17,24 @@ export default function Dashboard() {
   const [sold, setSold] = useState([]);
   const [unsold, setUnsold] = useState([]);
   const [stats, setStats] = useState(null);
+  const [auctionState, setAuctionState] = useState(null);
   const [squads, setSquads] = useState({});
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [roleFilter, setRoleFilter] = useState("All");
 
   const load = async () => {
-    const [lb, s, u, st] = await Promise.all([
+    const [lb, s, u, st, auction] = await Promise.all([
       axios.get(`${API_BASE_URL}/dashboard/leaderboard`),
       axios.get(`${API_BASE_URL}/dashboard/players/sold`),
       axios.get(`${API_BASE_URL}/dashboard/players/unsold`),
       axios.get(`${API_BASE_URL}/dashboard/stats`),
+      axios.get(`${API_BASE_URL}/auction/state`),
     ]);
     setLeaderboard(lb.data);
     setSold(s.data);
     setUnsold(u.data);
     setStats(st.data);
+    setAuctionState(auction.data);
   };
 
   useEffect(() => {
@@ -96,6 +99,51 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Live bid status */}
+        {auctionState && (
+          <section className="bg-white rounded-2xl shadow mb-6 p-5">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-bold text-gray-800">🔴 Live Current Bid</h2>
+              {auctionState.timer_disabled_for_current_player && (
+                <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                  No Timer (Intense Bid Mode)
+                </span>
+              )}
+            </div>
+            {auctionState.status !== "active" || !auctionState.current_player ? (
+              <p className="text-sm text-gray-500">No active bid right now.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Player</p>
+                  <p className="font-semibold text-gray-800">{auctionState.current_player.name}</p>
+                  <p className="text-xs text-gray-500">{auctionState.current_player.role}</p>
+                </div>
+                <div className="bg-indigo-50 rounded-xl p-3">
+                  <p className="text-xs text-indigo-400 uppercase tracking-wide">Highest Bid</p>
+                  <p className="font-semibold text-indigo-700">
+                    {fmt(auctionState.current_highest_bid ?? auctionState.current_player.base_price)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Highest Team</p>
+                  <p className="font-semibold text-gray-700">
+                    {auctionState.current_highest_team?.name || "No bids yet"}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Timer</p>
+                  <p className="font-semibold text-gray-700">
+                    {auctionState.timer_disabled_for_current_player
+                      ? "Disabled"
+                      : `${auctionState.timer_remaining ?? 0}s`}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Leaderboard */}
         <section className="bg-white rounded-2xl shadow mb-6 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
@@ -117,7 +165,12 @@ export default function Dashboard() {
                 <Fragment key={team.id}>
                   <tr key={team.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-bold text-gray-400">{i + 1}</td>
-                    <td className="px-6 py-4 font-semibold text-gray-800">{team.name}</td>
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-gray-800">{team.name}</p>
+                      <a href={`/team/${team.id}`} className="text-xs text-indigo-600 hover:underline">
+                        Open Team Page →
+                      </a>
+                    </td>
                     <td className="px-6 py-4 text-right text-gray-700">{team.players_count}</td>
                     <td className="px-6 py-4 text-right text-red-500 font-medium">{fmt(team.spent)}</td>
                     <td className="px-6 py-4 text-right text-green-600 font-medium">{fmt(team.budget_remaining)}</td>
